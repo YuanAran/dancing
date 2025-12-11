@@ -12,6 +12,7 @@ public class Video {
     private String filePath;
     private Integer uploaderId;
     private String uploaderName;  // 上传者用户名（从user表关联）
+    private String thumbnailPath;
     private LocalDateTime createdAt;
 
     public Video() {}
@@ -72,6 +73,14 @@ public class Video {
         this.uploaderName = uploaderName;
     }
 
+    public String getThumbnailPath() {
+        return thumbnailPath;
+    }
+
+    public void setThumbnailPath(String thumbnailPath) {
+        this.thumbnailPath = thumbnailPath;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -89,6 +98,7 @@ public class Video {
                 ", filePath='" + filePath + '\'' +
                 ", uploaderId=" + uploaderId +
                 ", uploaderName='" + uploaderName + '\'' +
+                ", thumbnailPath='" + thumbnailPath + '\'' +
                 ", createdAt=" + createdAt +
                 '}';
     }

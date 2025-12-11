@@ -159,7 +159,7 @@ const createOrJoinRoom = async () => {
   try {
     const token = localStorage.getItem('token')
     const response = await axios.post(
-      'https://192.168.1.113:8080/api/video-call/create-room',
+      'https://localhost:8080/api/video-call/create-room',
       roomForm.value,
       {
         headers: { Authorization: token }
@@ -399,7 +399,7 @@ const endCall = async () => {
     if (wsClient && roomId.value) {
       const token = localStorage.getItem('token')
       await axios.post(
-        'https://192.168.1.113:8080/api/video-call/leave-room',
+        'https://localhost:8080/api/video-call/leave-room',
         { roomId: roomId.value },
         { headers: { Authorization: token } }
       )

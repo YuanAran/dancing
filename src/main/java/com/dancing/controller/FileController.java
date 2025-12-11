@@ -57,5 +57,36 @@ public class FileController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    /**
+     * 获取图片文件（缩略图）
+     * @param path 图片文件的相对路径（如：videos/2025/10/1_1234567890_thumb.jpg）
+     */
+    @GetMapping("/image")
+    public ResponseEntity<Resource> getImageFile(@RequestParam String path) {
+        try {
+            String normalizedPath = path.replace("/", File.separator);
+            String fullPath = videoService.getVideoFullPath(normalizedPath);
+            File imageFile = new File(fullPath);
+
+            if (!imageFile.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new FileSystemResource(imageFile);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.IMAGE_JPEG);
+            headers.setContentLength(imageFile.length());
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
 

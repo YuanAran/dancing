@@ -55,8 +55,17 @@ public class VideoService {
             // 4. 保存文件
             file.transferTo(targetFile);
 
+            String thumbnailRelativePath = generateThumbnailPath(relativePath);
+            File thumbnailFile = new File(uploadBasePath + thumbnailRelativePath);
+            File thumbnailParent = thumbnailFile.getParentFile();
+            if (!thumbnailParent.exists()) {
+                thumbnailParent.mkdirs();
+            }
+            generateVideoThumbnail(targetFile, thumbnailFile);
+
             // 5. 保存视频信息到数据库
             Video video = new Video(title, description, relativePath, uploaderId);
+            video.setThumbnailPath(thumbnailRelativePath);
             int result = videoMapper.insert(video);
             
             return result > 0;
@@ -113,6 +122,13 @@ public class VideoService {
                 file.delete();
             }
 
+            if (video.getThumbnailPath() != null) {
+                File thumbFile = new File(uploadBasePath + video.getThumbnailPath());
+                if (thumbFile.exists()) {
+                    thumbFile.delete();
+                }
+            }
+
             // 3. 删除数据库记录
             int result = videoMapper.deleteById(id);
             return result > 0;
@@ -157,6 +173,30 @@ public class VideoService {
         
         // 使用File.separator确保跨平台兼容性
         return videoPathPrefix + year + File.separator + month + File.separator + filename;
+    }
+
+    private String generateThumbnailPath(String videoRelativePath) {
+        int idx = videoRelativePath.lastIndexOf('.')
+;        String base = idx > -1 ? videoRelativePath.substring(0, idx) : videoRelativePath;
+        return base + "_thumb.jpg";
+    }
+
+    private void generateVideoThumbnail(File videoFile, File thumbnailFile) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "ffmpeg",
+                    "-y",
+                    "-i", videoFile.getAbsolutePath(),
+                    "-ss", "00:00:01",
+                    "-vframes", "1",
+                    thumbnailFile.getAbsolutePath()
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            process.waitFor();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

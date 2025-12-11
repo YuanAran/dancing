@@ -21,7 +21,7 @@ export class WebSocketClient {
     }
 
     // 使用SockJS连接
-    const socket = new SockJS('https://192.168.1.113:8080/ws/video-call')
+    const socket = new SockJS('https://localhost:8080/ws/video-call')
     this.stompClient = Stomp.over(socket)
 
     // 禁用调试信息

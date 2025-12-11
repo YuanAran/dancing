@@ -42,7 +42,7 @@
                 <el-icon><User /></el-icon>
               </el-avatar>
               <div class="author-details">
-                <span class="author-name">{{ post.username }}</span>
+                <span class="author-name">发帖人：{{ post.username }}</span>
                 <span class="post-time">{{ formatTime(post.createdAt) }}</span>
               </div>
             </div>

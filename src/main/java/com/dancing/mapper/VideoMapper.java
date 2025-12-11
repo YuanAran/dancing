@@ -14,7 +14,7 @@ public interface VideoMapper {
     /**
      * 插入新视频
      */
-    @Insert("INSERT INTO videos(title, description, file_path, uploader_id) VALUES(#{title}, #{description}, #{filePath}, #{uploaderId})")
+    @Insert("INSERT INTO videos(title, description, file_path, uploader_id, thumbnail_path) VALUES(#{title}, #{description}, #{filePath}, #{uploaderId}, #{thumbnailPath})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Video video);
 

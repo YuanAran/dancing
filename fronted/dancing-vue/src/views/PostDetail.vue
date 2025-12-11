@@ -9,7 +9,7 @@
               <el-icon><User /></el-icon>
             </el-avatar>
             <div class="author-info">
-              <div class="author-name">{{ post.username }}</div>
+              <div class="author-name">发帖人：{{ post.username }}</div>
               <div class="post-meta">
                 <span class="post-time">{{ formatTime(post.createdAt) }}</span>
                 <span v-if="post.updatedAt !== post.createdAt" class="edit-mark">

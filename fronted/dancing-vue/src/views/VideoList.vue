@@ -40,7 +40,15 @@
       >
         <el-card class="video-card" @click="goToVideo(video.id)">
           <div class="video-thumbnail">
-            <el-icon size="48"><VideoPlay /></el-icon>
+            <img
+              v-if="video.thumbnailPath"
+              :src="getImageUrl(video.thumbnailPath)"
+              alt="video thumbnail"
+              class="video-cover"
+            />
+            <div v-else class="video-placeholder">
+              <el-icon size="48"><VideoPlay /></el-icon>
+            </div>
             <div class="play-overlay">
               <el-icon size="24"><VideoPlay /></el-icon>
             </div>
@@ -123,6 +131,17 @@ const currentPage = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
 const deletingVideoId = ref(null)
+//
+// const getImageUrl = (path) => {
+//   if (!path) return ''
+//   const cleanPath = path.replace(/^[/\\]+/, '').replace(/\\/g, '/')
+//   return `/api/files/image?path=${encodeURIComponent(cleanPath)}`
+// }
+const getImageUrl = (path) => {
+  if (!path) return ''
+  const cleanPath = path.replace(/^[/\\]+/, '').replace(/\\/g, '/')
+  return `https://localhost:8080/api/files/image?path=${encodeURIComponent(cleanPath)}`
+}
 
 // 获取视频列表
 const getVideoList = async () => {
@@ -265,6 +284,21 @@ onMounted(() => {
   color: #999;
   position: relative;
   margin-bottom: 12px;
+}
+
+.video-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.video-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .play-overlay {

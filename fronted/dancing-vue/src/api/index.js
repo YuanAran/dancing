@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'https://192.168.1.113:8080/api',
+  baseURL: 'https://localhost:8080/api',
   timeout: 10000,
   withCredentials: true // 支持cookies
 })

@@ -159,7 +159,7 @@ const getVideoUrl = (filePath) => {
   // 将文件路径中的反斜杠转换为正斜杠（Windows路径兼容）
   const normalizedPath = filePath.replace(/\\/g, '/')
   // 构建视频文件访问URL
-  const videoUrl = `https://192.168.1.113:8080/api/files/video?path=${encodeURIComponent(normalizedPath)}`
+  const videoUrl = `https://localhost:8080/api/files/video?path=${encodeURIComponent(normalizedPath)}`
   console.log('视频文件路径:', filePath, '-> URL:', videoUrl)
   return videoUrl
 }

@@ -31,7 +31,7 @@ export default defineConfig({
     port: 5173,       // 前端启动端口
     proxy: {
       '/api': {
-        target: 'https://192.168.1.113:8080', // 后端 Spring Boot 地址
+        target: 'https://localhost:8080', // 后端 Spring Boot 地址
         changeOrigin: true,
         secure: false, // 后端是自签名证书时要设为 false
       },
