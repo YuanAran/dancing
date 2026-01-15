@@ -50,7 +50,7 @@
         <el-col :xs="24" :sm="12" :md="6">
           <div class="action-card" @click="$router.push('/friends/search')">
             <div class="action-icon friend-icon">
-              <el-icon size="40"><UserPlus /></el-icon>
+              <el-icon size="40"><Plus /></el-icon>
             </div>
             <h3>添加好友</h3>
             <p>结识更多舞友</p>
@@ -130,6 +130,18 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { videoApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import {
+  Lightning,
+  Edit,
+  Upload,
+  Plus,
+  Collection,
+  VideoCamera,
+  VideoPlay,
+  User,
+  Calendar,
+  ArrowRight
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()

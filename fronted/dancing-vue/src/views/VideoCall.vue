@@ -33,7 +33,7 @@
         <div class="video-grid">
           <!-- 本地视频 -->
           <div class="video-wrapper local-video">
-            <video ref="localVideo" autoplay muted class="video-element"></video>
+            <video ref="localVideo" autoplay muted playsinline class="video-element"></video>
             <div class="video-label">我 ({{ currentUser?.username }})</div>
             <div class="video-controls">
               <el-button
@@ -57,7 +57,7 @@
 
           <!-- 远程视频 -->
           <div class="video-wrapper remote-video">
-            <video ref="remoteVideo" autoplay class="video-element"></video>
+            <video ref="remoteVideo" autoplay playsinline class="video-element"></video>
             <div class="video-label">对方</div>
             <div v-if="!remoteStream" class="waiting">
               <el-icon size="64"><User /></el-icon>
@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { WebSocketClient } from '@/utils/websocket'
@@ -111,6 +111,8 @@ let peerConnection = null
 let wsClient = null
 let queuedOffer = null
 let queuedAnswer = null
+let queuedIceCandidates = []
+let remoteJoined = false
 
 // 表单
 const roomForm = ref({
@@ -159,7 +161,7 @@ const createOrJoinRoom = async () => {
   try {
     const token = localStorage.getItem('token')
     const response = await axios.post(
-      'https://localhost:8080/api/video-call/create-room',
+      'https://192.168.1.12:8080/api/video-call/create-room',
       roomForm.value,
       {
         headers: { Authorization: token }
@@ -231,27 +233,77 @@ const handleSignalMessage = async (message) => {
   } else if (type === 'ice-candidate') {
     const { candidate } = message
     // 收到ICE候选，添加到连接
-    if (candidate && peerConnection) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-    }
+    await addIceCandidateSafely(candidate)
   } else if (type === 'user-joined') {
     const { userId, username } = message
     if (userId === currentUser.value?.id) {
       return
     }
+    remoteJoined = true
     remoteUser.value = username
     ElMessage.info(`${username} 加入了通话`)
+    await maybeCreateOffer()
   } else if (type === 'user-left') {
     const { userId, username } = message
     if (userId === currentUser.value?.id) {
       return
     }
+    remoteJoined = false
     ElMessage.info(`${username} 离开了通话`)
     if (remoteStream.value) {
       remoteStream.value.getTracks().forEach(track => track.stop())
       remoteStream.value = null
     }
   }
+}
+
+const addIceCandidateSafely = async (candidate) => {
+  if (!candidate) {
+    return
+  }
+
+  const iceCandidate = new RTCIceCandidate(candidate)
+
+  if (!peerConnection || !peerConnection.remoteDescription) {
+    queuedIceCandidates.push(iceCandidate)
+    return
+  }
+
+  await peerConnection.addIceCandidate(iceCandidate)
+}
+
+const drainIceCandidates = async () => {
+  if (!peerConnection || !peerConnection.remoteDescription || queuedIceCandidates.length === 0) {
+    return
+  }
+
+  const candidates = queuedIceCandidates
+  queuedIceCandidates = []
+
+  for (const candidate of candidates) {
+    await peerConnection.addIceCandidate(candidate)
+  }
+}
+
+const maybeCreateOffer = async () => {
+  if (!peerConnection || !wsClient || !roomId.value) {
+    return
+  }
+
+  if (!isCreator.value || hasLocalOffer.value || !remoteJoined) {
+    return
+  }
+
+  const offer = await peerConnection.createOffer()
+  await peerConnection.setLocalDescription(offer)
+
+  wsClient.sendSignal(roomId.value, {
+    type: 'offer',
+    sdp: offer,
+    userId: currentUser.value.id
+  })
+
+  hasLocalOffer.value = true
 }
 
 const processOffer = async ({ sdp, userId, username }) => {
@@ -265,6 +317,7 @@ const processOffer = async ({ sdp, userId, username }) => {
   }
 
   await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp))
+  await drainIceCandidates()
   const answer = await peerConnection.createAnswer()
   await peerConnection.setLocalDescription(answer)
 
@@ -290,6 +343,7 @@ const processAnswer = async ({ sdp }) => {
   }
 
   await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp))
+  await drainIceCandidates()
 }
 
 // 初始化WebRTC
@@ -301,12 +355,31 @@ const initWebRTC = async () => {
       audio: true
     })
 
+    await nextTick()
+
     if (localVideo.value) {
       localVideo.value.srcObject = localStream.value
+      localVideo.value.play?.().catch(() => {})
     }
 
     // 创建RTCPeerConnection
     peerConnection = new RTCPeerConnection(rtcConfiguration)
+
+    peerConnection.onconnectionstatechange = () => {
+      console.log('pc.connectionState:', peerConnection?.connectionState)
+    }
+
+    peerConnection.oniceconnectionstatechange = () => {
+      console.log('pc.iceConnectionState:', peerConnection?.iceConnectionState)
+    }
+
+    peerConnection.onsignalingstatechange = () => {
+      console.log('pc.signalingState:', peerConnection?.signalingState)
+    }
+
+    peerConnection.onicegatheringstatechange = () => {
+      console.log('pc.iceGatheringState:', peerConnection?.iceGatheringState)
+    }
 
     // 添加本地流轨道
     localStream.value.getTracks().forEach(track => {
@@ -318,6 +391,7 @@ const initWebRTC = async () => {
       remoteStream.value = event.streams[0]
       if (remoteVideo.value) {
         remoteVideo.value.srcObject = remoteStream.value
+        remoteVideo.value.play?.().catch(() => {})
       }
     }
 
@@ -339,19 +413,7 @@ const initWebRTC = async () => {
       username: currentUser.value.username
     })
 
-    // 创建offer（仅房间创建者）
-    if (isCreator.value && !hasLocalOffer.value) {
-      const offer = await peerConnection.createOffer()
-      await peerConnection.setLocalDescription(offer)
-
-      wsClient.sendSignal(roomId.value, {
-        type: 'offer',
-        sdp: offer,
-        userId: currentUser.value.id
-      })
-
-      hasLocalOffer.value = true
-    }
+    await maybeCreateOffer()
 
     if (!isCreator.value && queuedOffer) {
       const cachedOffer = queuedOffer
@@ -399,7 +461,7 @@ const endCall = async () => {
     if (wsClient && roomId.value) {
       const token = localStorage.getItem('token')
       await axios.post(
-        'https://localhost:8080/api/video-call/leave-room',
+        'https://192.168.1.12:8080/api/video-call/leave-room',
         { roomId: roomId.value },
         { headers: { Authorization: token } }
       )
@@ -436,6 +498,8 @@ const endCall = async () => {
     hasLocalOffer.value = false
     queuedOffer = null
     queuedAnswer = null
+    queuedIceCandidates = []
+    remoteJoined = false
 
     ElMessage.success('已结束通话')
     router.push('/')

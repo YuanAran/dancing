@@ -6,7 +6,7 @@
         好友管理
       </h1>
       <el-button type="primary" @click="$router.push('/friends/search')">
-        <el-icon><UserPlus /></el-icon>
+        <el-icon><Plus /></el-icon>
         添加好友
       </el-button>
     </div>
@@ -218,7 +218,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { friendApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { VideoCamera } from '@element-plus/icons-vue'
+import { Check, Close, DataAnalysis, Plus, User, UserMinus, VideoCamera } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -246,8 +246,14 @@ const getFriends = async () => {
     if (response.code === 200) {
       const data = response.data || {}
       friends.value = data.friends || []
-      pendingRequests.value = data.pendingRequests || []
-      sentRequests.value = data.sentRequests || []
+      pendingRequests.value = (data.pendingRequests || []).map(req => ({
+        ...req,
+        status: req.status || 'pending'
+      }))
+      sentRequests.value = (data.sentRequests || []).map(req => ({
+        ...req,
+        status: req.status || 'pending'
+      }))
       
       console.log('好友列表:', friends.value)
       console.log('待处理申请:', pendingRequests.value)

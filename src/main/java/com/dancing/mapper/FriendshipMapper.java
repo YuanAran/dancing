@@ -65,7 +65,7 @@ public interface FriendshipMapper {
     /**
      * 删除好友关系
      */
-    @Delete("DELETE FROM friendships WHERE user_id = #{userId} AND friend_id = #{friendId}")
+    @Delete("DELETE FROM friendships WHERE (user_id = #{userId} AND friend_id = #{friendId}) OR (user_id = #{friendId} AND friend_id = #{userId})")
     int deleteFriendship(@Param("userId") Integer userId, @Param("friendId") Integer friendId);
 
     /**

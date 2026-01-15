@@ -11,6 +11,7 @@ public class Comment {
     private Integer userId;
     private Integer videoId;
     private Integer postId;
+    private String username;
     private LocalDateTime createdAt;
 
     public Comment() {}
@@ -63,6 +64,14 @@ public class Comment {
         this.postId = postId;
     }
 
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -79,6 +88,7 @@ public class Comment {
                 ", userId=" + userId +
                 ", videoId=" + videoId +
                 ", postId=" + postId +
+                ", username='" + username + '\'' +
                 ", createdAt=" + createdAt +
                 '}';
     }

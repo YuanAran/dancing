@@ -140,7 +140,7 @@ const deletingVideoId = ref(null)
 const getImageUrl = (path) => {
   if (!path) return ''
   const cleanPath = path.replace(/^[/\\]+/, '').replace(/\\/g, '/')
-  return `https://localhost:8080/api/files/image?path=${encodeURIComponent(cleanPath)}`
+  return `https://192.168.1.12:8080/api/files/image?path=${encodeURIComponent(cleanPath)}`
 }
 
 // 获取视频列表

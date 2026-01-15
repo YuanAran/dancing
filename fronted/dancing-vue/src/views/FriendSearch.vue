@@ -73,7 +73,7 @@
                 @click="sendFriendRequest(user.id)"
                 :loading="sendingRequestId === user.id"
               >
-                <el-icon><UserPlus /></el-icon>
+                <el-icon><Plus /></el-icon>
                 添加好友
               </el-button>
               
@@ -158,6 +158,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { friendApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import { Check, Clock, InfoFilled, Plus, Search, User } from '@element-plus/icons-vue'
 
 const searchKeyword = ref('')
 const searching = ref(false)

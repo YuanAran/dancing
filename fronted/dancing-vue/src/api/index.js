@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'https://localhost:8080/api',
+  baseURL: 'https://192.168.1.12:8080/api',
   timeout: 10000,
   withCredentials: true // 支持cookies
 })
@@ -167,6 +167,18 @@ export const postApi = {
   
   // 搜索帖子
   searchPosts: (keyword) => api.get(`/posts/search?keyword=${keyword}`)
+}
+
+// 评论相关API
+export const commentApi = {
+  // 获取帖子评论列表
+  getPostComments: (postId) => api.get(`/posts/${postId}/comments`),
+
+  // 发表评论
+  createPostComment: (postId, data) => api.post(`/posts/${postId}/comments`, data),
+
+  // 删除评论
+  deleteComment: (commentId) => api.delete(`/comments/${commentId}`)
 }
 
 // 视频通话相关API

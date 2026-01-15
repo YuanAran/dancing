@@ -21,7 +21,9 @@ public interface PostMapper {
     /**
      * 根据ID查询帖子（包含用户名）
      */
-    @Select("SELECT p.*, u.username FROM posts p " +
+    @Select("SELECT p.id, p.title, p.content, p.user_id, p.likes_count, p.created_at, p.updated_at, " +
+            "u.username " +
+            "FROM posts p " +
             "LEFT JOIN users u ON p.user_id = u.id " +
             "WHERE p.id = #{id}")
     Post findById(Integer id);
@@ -29,7 +31,9 @@ public interface PostMapper {
     /**
      * 查询所有帖子（包含用户名，按创建时间倒序）
      */
-    @Select("SELECT p.*, u.username FROM posts p " +
+    @Select("SELECT p.id, p.title, p.content, p.user_id, p.likes_count, p.created_at, p.updated_at, " +
+            "u.username " +
+            "FROM posts p " +
             "LEFT JOIN users u ON p.user_id = u.id " +
             "ORDER BY p.created_at DESC")
     List<Post> findAll();
@@ -37,7 +41,9 @@ public interface PostMapper {
     /**
      * 根据用户ID查询帖子
      */
-    @Select("SELECT p.*, u.username FROM posts p " +
+    @Select("SELECT p.id, p.title, p.content, p.user_id, p.likes_count, p.created_at, p.updated_at, " +
+            "u.username " +
+            "FROM posts p " +
             "LEFT JOIN users u ON p.user_id = u.id " +
             "WHERE p.user_id = #{userId} " +
             "ORDER BY p.created_at DESC")
@@ -46,7 +52,9 @@ public interface PostMapper {
     /**
      * 根据标题搜索帖子
      */
-    @Select("SELECT p.*, u.username FROM posts p " +
+    @Select("SELECT p.id, p.title, p.content, p.user_id, p.likes_count, p.created_at, p.updated_at, " +
+            "u.username " +
+            "FROM posts p " +
             "LEFT JOIN users u ON p.user_id = u.id " +
             "WHERE p.title LIKE CONCAT('%', #{keyword}, '%') " +
             "OR p.content LIKE CONCAT('%', #{keyword}, '%') " +

@@ -27,8 +27,18 @@ public interface CommentMapper {
     /**
      * 根据帖子ID查找评论
      */
-    @Select("SELECT * FROM comments WHERE post_id = #{postId} ORDER BY created_at DESC")
+    @Select("SELECT c.id, c.content, c.user_id, c.video_id, c.post_id, c.created_at, u.username " +
+            "FROM comments c " +
+            "LEFT JOIN users u ON c.user_id = u.id " +
+            "WHERE c.post_id = #{postId} " +
+            "ORDER BY c.created_at DESC")
     List<Comment> findByPostId(Integer postId);
+
+    @Select("SELECT c.id, c.content, c.user_id, c.video_id, c.post_id, c.created_at, u.username " +
+            "FROM comments c " +
+            "LEFT JOIN users u ON c.user_id = u.id " +
+            "WHERE c.id = #{id}")
+    Comment findById(Integer id);
 
     /**
      * 删除评论

@@ -56,6 +56,61 @@
             查看点赞用户
           </el-button>
         </div>
+
+        <el-divider />
+
+        <div class="comments-section">
+          <div class="comments-header">
+            <span class="comments-title">评论</span>
+            <span class="comments-count">({{ comments.length }})</span>
+          </div>
+
+          <div v-if="userStore.isLoggedIn" class="comment-editor">
+            <el-input
+              v-model="newComment"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+              placeholder="写下你的评论..."
+            />
+            <div class="comment-editor-actions">
+              <el-button type="primary" :loading="commentSubmitting" @click="submitComment">
+                发表评论
+              </el-button>
+            </div>
+          </div>
+
+          <el-empty v-if="!commentsLoading && comments.length === 0" description="暂无评论" :image-size="100" />
+
+          <div v-loading="commentsLoading" class="comments-list">
+            <div v-for="c in comments" :key="c.id" class="comment-item">
+              <div class="comment-left">
+                <el-avatar :size="32">
+                  <el-icon><User /></el-icon>
+                </el-avatar>
+              </div>
+              <div class="comment-main">
+                <div class="comment-meta">
+                  <span class="comment-username">{{ c.username || '用户' }}</span>
+                  <span class="comment-time">{{ formatTime(c.createdAt) }}</span>
+                </div>
+                <div class="comment-content">{{ c.content }}</div>
+              </div>
+              <div class="comment-actions">
+                <el-button
+                  v-if="isCommentAuthor(c)"
+                  text
+                  type="danger"
+                  size="small"
+                  @click="deleteComment(c)"
+                >
+                  删除
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
 
       <el-empty v-else-if="!loading && !post" description="帖子不存在或已被删除" />
@@ -123,7 +178,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { postApi } from '@/api'
+import { postApi, commentApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
@@ -136,6 +191,11 @@ const likeUsersVisible = ref(false)
 const likeUsers = ref([])
 const editVisible = ref(false)
 const updating = ref(false)
+
+const comments = ref([])
+const commentsLoading = ref(false)
+const newComment = ref('')
+const commentSubmitting = ref(false)
 
 const editFormRef = ref(null)
 const editForm = reactive({
@@ -165,6 +225,7 @@ const fetchPostDetail = async () => {
     const response = await postApi.getPostDetail(route.params.id)
     if (response.code === 200) {
       post.value = response.data
+      fetchComments()
     } else {
       ElMessage.error(response.message || '获取帖子详情失败')
       post.value = null
@@ -175,6 +236,81 @@ const fetchPostDetail = async () => {
     post.value = null
   } finally {
     loading.value = false
+  }
+}
+
+const fetchComments = async () => {
+  commentsLoading.value = true
+  try {
+    const response = await commentApi.getPostComments(route.params.id)
+    if (response.code === 200) {
+      comments.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '获取评论失败')
+    }
+  } catch (error) {
+    console.error('获取评论失败:', error)
+    ElMessage.error('获取评论失败')
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const submitComment = async () => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  if (!newComment.value.trim()) {
+    ElMessage.warning('请输入评论内容')
+    return
+  }
+
+  commentSubmitting.value = true
+  try {
+    const response = await commentApi.createPostComment(route.params.id, { content: newComment.value })
+    if (response.code === 200) {
+      ElMessage.success('评论成功')
+      newComment.value = ''
+      fetchComments()
+    } else {
+      ElMessage.error(response.message || '评论失败')
+    }
+  } catch (error) {
+    console.error('评论失败:', error)
+    ElMessage.error('评论失败')
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+const isCommentAuthor = (c) => {
+  return userStore.user && c && c.userId === userStore.user.id
+}
+
+const deleteComment = async (c) => {
+  if (!c || !c.id) return
+
+  try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const response = await commentApi.deleteComment(c.id)
+    if (response.code === 200) {
+      ElMessage.success('删除成功')
+      fetchComments()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除评论失败:', error)
+      ElMessage.error('删除失败')
+    }
   }
 }
 
@@ -279,16 +415,39 @@ const handleDelete = async () => {
   }
 }
 
-// 格式化时间
+// 将后端返回的时间统一按北京时间解析
+const parseToBeijingDate = (time) => {
+  if (!time) return null
+  if (time instanceof Date) return time
+
+  if (typeof time === 'string') {
+    // 兼容 "yyyy-MM-dd HH:mm:ss" 和 ISO 字符串
+    const normalized = time.replace(' ', 'T')
+
+    // 已经带有时区信息的，直接用
+    if (normalized.endsWith('Z') || normalized.includes('+')) {
+      return new Date(normalized)
+    }
+
+    // 默认按北京时区处理
+    return new Date(normalized + '+08:00')
+  }
+
+  return new Date(time)
+}
+
+// 格式化时间（展示为北京时间）
 const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
+  const date = parseToBeijingDate(time)
+  if (!date) return ''
+
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: false
   })
 }
 
@@ -302,6 +461,88 @@ onMounted(() => {
   max-width: 900px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.comments-section {
+  padding-top: 10px;
+}
+
+.comments-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.comments-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.comments-count {
+  font-size: 13px;
+  color: #909399;
+}
+
+.comment-editor {
+  margin-bottom: 16px;
+}
+
+.comment-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.comment-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.comment-content {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: flex-start;
 }
 
 .detail-card {

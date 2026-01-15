@@ -131,10 +131,29 @@ const goToDetail = (id) => {
   router.push(`/posts/${id}`)
 }
 
-// 格式化时间
+// 将后端返回的时间统一按北京时间解析
+const parseToBeijingDate = (time) => {
+  if (!time) return null
+  if (time instanceof Date) return time
+
+  if (typeof time === 'string') {
+    const normalized = time.replace(' ', 'T')
+
+    if (normalized.endsWith('Z') || normalized.includes('+')) {
+      return new Date(normalized)
+    }
+
+    return new Date(normalized + '+08:00')
+  }
+
+  return new Date(time)
+}
+
+// 格式化时间（相对时间，基于北京时间）
 const formatTime = (time) => {
-  if (!time) return ''
-  const date = new Date(time)
+  const date = parseToBeijingDate(time)
+  if (!date) return ''
+
   const now = new Date()
   const diff = now - date
   
