@@ -51,7 +51,7 @@
                     @click="removeFriend(friend.id)"
                     :loading="removingFriendId === friend.id"
                   >
-                    <el-icon><UserMinus /></el-icon>
+                    <el-icon><Remove /></el-icon>
                     删除好友
                   </el-button>
                 </div>
@@ -218,7 +218,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { friendApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Close, DataAnalysis, Plus, User, UserMinus, VideoCamera } from '@element-plus/icons-vue'
+import { Check, Close, DataAnalysis, Plus, Remove, User, VideoCamera } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
