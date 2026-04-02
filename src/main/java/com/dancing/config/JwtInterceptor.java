@@ -68,6 +68,11 @@ public class JwtInterceptor implements HandlerInterceptor {
             (path.equals("/api/videos") || path.matches("/api/videos/\\d+") || path.startsWith("/api/videos/search"))) {
             return true;
         }
+
+        if (path.startsWith("/api/music") &&
+            (path.equals("/api/music") || path.startsWith("/api/music/search"))) {
+            return true;
+        }
         
         if (path.startsWith("/api/posts") && 
             (path.equals("/api/posts/list") || path.matches("/api/posts/\\d+") || path.startsWith("/api/posts/search"))) {
@@ -76,6 +81,11 @@ public class JwtInterceptor implements HandlerInterceptor {
         
         // 文件访问接口
         if (path.startsWith("/api/files/")) {
+            return true;
+        }
+
+        // 直播列表：局域网内多设备拉取，无需登录
+        if ("/api/live/rooms".equals(path)) {
             return true;
         }
         

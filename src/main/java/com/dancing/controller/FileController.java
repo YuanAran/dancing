@@ -1,6 +1,7 @@
 package com.dancing.controller;
 
 import com.dancing.service.VideoService;
+import com.dancing.service.MusicService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -20,6 +21,9 @@ public class FileController {
 
     @Autowired
     private VideoService videoService;
+
+    @Autowired
+    private MusicService musicService;
 
     /**
      * 获取视频文件流
@@ -83,6 +87,35 @@ public class FileController {
                     .headers(headers)
                     .body(resource);
 
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 获取音频文件流
+     * @param path 音频文件相对路径（如：musics/2026/04/1_1234567890.mp3）
+     */
+    @GetMapping("/audio")
+    public ResponseEntity<Resource> getAudioFile(@RequestParam String path) {
+        try {
+            String normalizedPath = path.replace("/", File.separator);
+            String fullPath = musicService.getMusicFullPath(normalizedPath);
+            File audioFile = new File(fullPath);
+            if (!audioFile.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new FileSystemResource(audioFile);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("audio/mpeg"));
+            headers.setContentLength(audioFile.length());
+            headers.set("Accept-Ranges", "bytes");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(resource);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();

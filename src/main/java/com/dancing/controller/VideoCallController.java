@@ -3,6 +3,7 @@ package com.dancing.controller;
 import com.dancing.common.ApiResponse;
 import com.dancing.common.JwtContext;
 import com.dancing.entity.User;
+import com.dancing.service.LiveRoomRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -27,6 +28,9 @@ public class VideoCallController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private LiveRoomRegistry liveRoomRegistry;
+
     // 存储房间信息：房间ID -> 房间信息
     private static final Map<String, RoomInfo> rooms = new ConcurrentHashMap<>();
 
@@ -45,14 +49,23 @@ public class VideoCallController {
 
             String roomId = (String) params.get("roomId");
             Integer targetUserId = (Integer) params.get("targetUserId");
+            // 直播观众端：仅加入已有房间，不创建房间，避免先于主播入会时被标成 creator 导致 WebRTC 信令颠倒
+            boolean joinOnly = parseBooleanParam(params.get("joinOnly"));
 
             if (roomId == null || roomId.isEmpty()) {
+                if (joinOnly) {
+                    return ApiResponse.error("缺少房间ID");
+                }
                 // 生成房间ID
                 roomId = "room_" + System.currentTimeMillis() + "_" + currentUser.getId();
             }
 
             RoomInfo room = rooms.get(roomId);
-            if (room == null) {
+            if (joinOnly) {
+                if (room == null) {
+                    return ApiResponse.error("直播间不存在或主播尚未开播，请稍后再试");
+                }
+            } else if (room == null) {
                 room = new RoomInfo();
                 room.setRoomId(roomId);
                 room.setCreatorId(currentUser.getId());
@@ -74,6 +87,67 @@ public class VideoCallController {
             return ApiResponse.success(result);
         } catch (Exception e) {
             return ApiResponse.error("创建房间失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 发起视频通话邀请：先为双方创建同一个房间号，
+     * 再通过 WebSocket 向目标用户推送邀请消息。
+     */
+    @PostMapping("/api/video-call/invite")
+    @ResponseBody
+    public ApiResponse<Map<String, Object>> invite(@RequestBody Map<String, Object> params,
+                                                     HttpServletRequest request) {
+        try {
+            User currentUser = jwtContext.getCurrentUser(request);
+            if (currentUser == null) {
+                return ApiResponse.unauthorized("用户未登录");
+            }
+
+            Object targetUserIdObj = params.get("targetUserId");
+            if (targetUserIdObj == null) {
+                return ApiResponse.badRequest("缺少目标用户ID");
+            }
+
+            Integer targetUserId;
+            try {
+                targetUserId = Integer.parseInt(String.valueOf(targetUserIdObj));
+            } catch (Exception e) {
+                return ApiResponse.badRequest("目标用户ID不合法");
+            }
+            String roomId = "room_" + System.currentTimeMillis() + "_"
+                    + currentUser.getId() + "_" + targetUserId;
+
+            RoomInfo room = rooms.get(roomId);
+            if (room == null) {
+                room = new RoomInfo();
+                room.setRoomId(roomId);
+                room.setCreatorId(currentUser.getId());
+                room.setCreatorName(currentUser.getUsername());
+                room.setTargetUserId(targetUserId);
+                rooms.put(roomId, room);
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("roomId", roomId);
+            result.put("userId", currentUser.getId());
+            result.put("username", currentUser.getUsername());
+            result.put("creatorId", room.getCreatorId());
+            result.put("creatorName", room.getCreatorName());
+            result.put("isCreator", true);
+
+            Map<String, Object> inviteMsg = new HashMap<>();
+            inviteMsg.put("type", "video-invite");
+            inviteMsg.put("roomId", roomId);
+            inviteMsg.put("fromUserId", currentUser.getId());
+            inviteMsg.put("fromUsername", currentUser.getUsername());
+
+            // 推送给被邀请用户：/queue/video-invite/{userId}
+            messagingTemplate.convertAndSend("/queue/video-invite/" + targetUserId, inviteMsg);
+
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error("发起邀请失败：" + e.getMessage());
         }
     }
 
@@ -118,12 +192,18 @@ public class VideoCallController {
             if (roomId != null) {
                 RoomInfo room = rooms.get(roomId);
                 if (room != null) {
+                    boolean creatorLeaving = room.getCreatorId() != null
+                            && room.getCreatorId().equals(currentUser.getId());
                     // 通知房间内其他用户
                     messagingTemplate.convertAndSend("/topic/room/" + roomId, 
                         createMessage("user-left", currentUser.getId(), currentUser.getUsername()));
                     
                     // 如果房间为空，删除房间
                     rooms.remove(roomId);
+                    // 直播列表仅随主播下播移除，避免观众先离开误删列表
+                    if (creatorLeaving && roomId.startsWith("live_")) {
+                        liveRoomRegistry.remove(roomId);
+                    }
                 }
             }
 
@@ -144,6 +224,16 @@ public class VideoCallController {
             // 转发信令消息到房间内所有用户
             messagingTemplate.convertAndSend("/topic/room/" + roomId, message);
         }
+    }
+
+    private static boolean parseBooleanParam(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
     }
 
     /**

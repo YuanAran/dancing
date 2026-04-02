@@ -85,13 +85,52 @@ const router = createRouter({
       name: 'videoCall',
       component: () => import('@/views/VideoCall.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/live',
+      name: 'liveHome',
+      component: () => import('@/views/LiveHome.vue')
+    },
+    {
+      path: '/live/create',
+      name: 'liveCreate',
+      component: () => import('@/views/LiveCreate.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/live/watch/:roomId',
+      name: 'liveWatch',
+      component: () => import('@/views/LiveWatch.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/live/:roomId',
+      name: 'liveBroadcast',
+      component: () => import('@/views/LiveBroadcast.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/music',
+      name: 'musicList',
+      component: () => import('@/views/MusicList.vue')
+    },
+    {
+      path: '/music/upload',
+      name: 'musicUpload',
+      component: () => import('@/views/MusicUpload.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })
 
-// 简化的路由守卫
 router.beforeEach((to, from, next) => {
-  // 暂时跳过认证检查，等store初始化后再处理
+  if (to.meta.requiresAuth) {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      next({ path: '/login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
   next()
 })
 

@@ -17,6 +17,8 @@
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item index="/posts">帖子广场</el-menu-item>
           <el-menu-item index="/videos">视频列表</el-menu-item>
+          <el-menu-item index="/music">在线音乐</el-menu-item>
+          <el-menu-item index="/live">直播</el-menu-item>
           <el-menu-item v-if="userStore.isLoggedIn" index="/friends">好友管理</el-menu-item>
         </el-menu>
 
@@ -67,19 +69,98 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { VideoCamera } from '@element-plus/icons-vue'
+import { WebSocketClient } from '@/utils/websocket'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const activeIndex = computed(() => route.path)
+const activeIndex = computed(() => {
+  if (route.path.startsWith('/live')) return '/live'
+  return route.path
+})
 
 const isAuthPage = computed(() => ['/login', '/register'].includes(route.path))
+
+// 用于“好友视频邀请”全局弹窗
+let inviteWsClient = null
+const isInvitePromptOpen = ref(false)
+
+const handleVideoInvite = async (payload) => {
+  if (!payload || payload.type !== 'video-invite') return
+  if (isInvitePromptOpen.value) return
+  // 如果当前已经在视频通话页，避免重复弹窗
+  if (route.path.startsWith('/video-call')) return
+
+  const fromUsername = payload.fromUsername || '用户'
+  const roomId = payload.roomId
+  if (!roomId) return
+
+  isInvitePromptOpen.value = true
+  try {
+    await ElMessageBox.confirm(`${fromUsername} 邀请你视频通话，是否接受？`, '视频邀请', {
+      confirmButtonText: '接受',
+      cancelButtonText: '拒绝',
+      type: 'warning'
+    })
+    router.push({ path: '/video-call', query: { roomId } })
+  } catch {
+    // 拒绝邀请：什么都不做
+  } finally {
+    isInvitePromptOpen.value = false
+  }
+}
+
+const connectInviteWsIfNeeded = () => {
+  if (inviteWsClient) return
+  if (!userStore.isLoggedIn || !userStore.user?.id) return
+
+  const token = localStorage.getItem('token')
+  if (!token) return
+
+  inviteWsClient = new WebSocketClient()
+  inviteWsClient.connect(
+    token,
+    () => {
+      inviteWsClient.subscribeToUserInvites(userStore.user.id, handleVideoInvite)
+    },
+    (err) => {
+      console.error('视频邀请 WebSocket 连接失败:', err)
+    }
+  )
+}
+
+watch(
+  () => userStore.user?.id,
+  () => {
+    if (userStore.isLoggedIn && userStore.user?.id) {
+      connectInviteWsIfNeeded()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => userStore.isLoggedIn,
+  (loggedIn) => {
+    if (!loggedIn && inviteWsClient) {
+      inviteWsClient.disconnect()
+      inviteWsClient = null
+    }
+  }
+)
+
+onBeforeUnmount(() => {
+  if (inviteWsClient) {
+    inviteWsClient.disconnect()
+    inviteWsClient = null
+  }
+})
 
 // 处理菜单选择
 const handleSelect = (index) => {

@@ -7,6 +7,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 import { useUserStore } from './stores/user'
+import { useLiveRoomStore } from './stores/liveRoom'
 
 const app = createApp(App)
 
@@ -23,5 +24,7 @@ app.use(ElementPlus)
 // 初始化用户状态（从localStorage恢复登录状态）
 const userStore = useUserStore()
 userStore.init()
+
+useLiveRoomStore().hydrateFromStorage()
 
 app.mount('#app')

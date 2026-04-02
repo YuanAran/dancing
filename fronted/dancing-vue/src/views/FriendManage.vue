@@ -216,7 +216,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { friendApi } from '@/api'
+import { friendApi, videoCallApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close, DataAnalysis, Plus, Remove, User, VideoCamera } from '@element-plus/icons-vue'
 
@@ -315,13 +315,23 @@ const rejectRequest = async (friendId) => {
 }
 
 // 发起视频通话
-const startVideoCall = (friendId) => {
-  router.push({
-    path: '/video-call',
-    query: {
-      targetUserId: friendId
+const startVideoCall = async (friendId) => {
+  try {
+    const response = await videoCallApi.invite({ targetUserId: friendId })
+    if (response.code === 200) {
+      const roomId = response.data?.roomId
+      if (!roomId) {
+        ElMessage.error('邀请成功但未获取房间号')
+        return
+      }
+      router.push({ path: '/video-call', query: { roomId } })
+    } else {
+      ElMessage.error(response.message || '发起邀请失败')
     }
-  })
+  } catch (e) {
+    console.error('发起邀请失败:', e)
+    ElMessage.error('发起邀请失败')
+  }
 }
 
 // 删除好友

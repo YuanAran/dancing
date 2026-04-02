@@ -66,6 +66,36 @@ export class WebSocketClient {
   }
 
   /**
+   * 订阅任意 STOMP 目的地址（如 /queue/...）
+   */
+  subscribeToDestination(destination, callback) {
+    if (!this.connected || !this.stompClient) {
+      console.error('WebSocket未连接')
+      return null
+    }
+
+    const subscription = this.stompClient.subscribe(destination, (message) => {
+      try {
+        const data = JSON.parse(message.body)
+        if (callback) callback(data)
+      } catch (error) {
+        console.error('解析消息失败:', error)
+      }
+    })
+
+    this.subscriptions.set(destination, subscription)
+    return subscription
+  }
+
+  /**
+   * 订阅视频通话邀请：/queue/video-invite/{userId}
+   */
+  subscribeToUserInvites(userId, callback) {
+    if (!userId) return null
+    return this.subscribeToDestination(`/queue/video-invite/${userId}`, callback)
+  }
+
+  /**
    * 发送信令消息
    */
   sendSignal(roomId, message) {

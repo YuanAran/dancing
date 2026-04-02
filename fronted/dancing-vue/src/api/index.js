@@ -14,7 +14,12 @@ api.interceptors.request.use(
     const url = config.url || ''
     const isPublicApi = url.includes('/user/register') || 
                         url.includes('/user/login') || 
-                        url === '/user/current'
+                        url === '/user/current' ||
+                        url === '/live/rooms' ||
+                        url.startsWith('/live/rooms?') ||
+                        url === '/music' ||
+                        url.startsWith('/music?') ||
+                        url.startsWith('/music/search')
     
     // 如果不是公开接口，必须携带Token
     if (!isPublicApi) {
@@ -181,6 +186,11 @@ export const commentApi = {
   deleteComment: (commentId) => api.delete(`/comments/${commentId}`)
 }
 
+export const liveApi = {
+  listRooms: () => api.get('/live/rooms'),
+  announce: (data) => api.post('/live/announce', data)
+}
+
 // 视频通话相关API
 export const videoCallApi = {
   // 创建或加入房间
@@ -188,9 +198,34 @@ export const videoCallApi = {
   
   // 获取房间信息
   getRoomInfo: (roomId) => api.get(`/video-call/room/${roomId}`),
+
+  // 发起视频通话邀请
+  invite: (data) => api.post('/video-call/invite', data),
   
   // 离开房间
   leaveRoom: (data) => api.post('/video-call/leave-room', data)
+}
+
+// 音乐相关API
+export const musicApi = {
+  // 获取音乐列表
+  getMusicList: () => api.get('/music'),
+
+  // 上传音乐
+  uploadMusic: (formData) => api.post('/music/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
+
+  // 获取我的音乐
+  getMyMusics: () => api.get('/music/my'),
+
+  // 删除音乐
+  deleteMusic: (id) => api.delete(`/music/${id}`),
+
+  // 搜索音乐
+  searchMusics: (keyword) => api.get(`/music/search?keyword=${keyword}`)
 }
 
 export default api
